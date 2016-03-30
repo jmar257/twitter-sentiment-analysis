@@ -1,0 +1,93 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar  5 19:31:53 2016
+
+@author: John
+"""
+
+from twython import Twython
+import datetime
+import tweepy
+from tweepy import OAuthHandler
+from tweepy import Stream
+from tweepy.streaming import StreamListener
+from http.client import IncompleteRead
+import datetime
+
+class MyListener(StreamListener):
+
+    def on_data(self, data):
+        try:
+            with open('numberfire.json', 'a') as f:
+                f.write(data)
+                return True
+        except BaseException as e:
+            print("Error on_data: %s" % str(e))
+        return True
+
+    def on_error(self, status):
+        print(status)
+        return True
+
+
+
+now = datetime.datetime.now()
+day = int(now.day)
+month = int(now.month)
+year = int(now.year)
+
+consumer_key = 'CWTRfQtskWduA9PmlFeij09jy'
+consumer_secret = 'lM5cQnWR6dUQDctZEjUKrekshekMHm9U4FsRa4tMM3hfUxP23y'
+access_token = '482187063-UM0sXMpbfzV2dGf07ptuKklqeqB4jUAUppOLbqf3'
+access_secret = 'N0pc2rwDixim6YjiG3O1oTis2AEa12PGyI915y0kkGQyw'
+
+
+auth = OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_secret)
+
+api = tweepy.API(auth)
+
+
+terms = []
+term = input('What term would you like to scrape? \nIf you wish to look for a certain hashtag, make sure to input # before the word\nType \done to continue\n')
+
+#while True:
+#    term = input('')
+#    if term == '\done':
+#        break
+#    terms.append(term)
+
+#terms = tuple(terms)
+
+filename = input('What would you like to name the file?\n')
+
+meta = open(filename + ' meta.txt', 'a')
+
+cur_time = datetime.datetime.strftime(datetime.datetime.now(), '%m-%d-%Y %h:%M')
+meta.write('Scraping started: ' + cur_time + '\n')
+meta.write('\nTerms scraped:\n' )
+meta.write(term)
+meta.close()
+
+while True:
+    try:
+        # Connect/reconnect the stream
+        stream = Stream(auth, MyListener())
+        # DON'T run this approach async or you'll just create a ton of streams!
+        stream.filter(track=[term])
+    except KeyboardInterrupt:
+        # Or however you want to exit this loop
+        stream.disconnect()
+        break
+    except:
+        # Oh well, reconnect and keep trucking
+        continue
+
+
+
+
+
+
+
+
+
