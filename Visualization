@@ -1,0 +1,113 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Mar  7 09:02:37 2016
+
+@author: John
+"""
+
+import vincent, pandas as pd, json
+from Preprocess import preprocess
+from collections import Counter
+import datetime
+
+#word_freq = count_only.most_common(20)
+#
+#labels, freq = zip(*word_freq)
+#
+#data = {'data': freq, 'x': labels}
+#
+#bar = vincent.Bar(data, iter_idx = 'x')
+#
+#bar.to_json('term_freq.json', html_out=True, html_path='chart.html')
+
+dates_feelthebern = []
+
+dates_imwithher = []
+
+dates_gopdebate = []
+
+dates_rubio = []
+
+count_only = Counter()
+
+f = open('gopdebate.json', 'r')
+
+
+for line in f:
+    try:
+        tweet = json.loads(line)
+        terms_hash = [term for term in preprocess(tweet['text']) if term.startswith('#')]
+        terms_only = [term for term in preprocess(tweet['text']) if term not in stop and not term.startswith(('#', '@'))]
+        if '#trump2016' in terms_hash:
+            dates_feelthebern.append(tweet['created_at'])
+        if '#nevertrump' in terms_hash:
+            dates_imwithher.append(tweet['created_at'])
+        if '#tedcruz' in terms_hash:
+            dates_gopdebate.append(tweet['created_at'])
+        if '#marcorubio' in terms_hash:
+            dates_rubio.append(tweet['created_at'])
+        count_only.update(terms_only)
+    except:
+        continue
+
+#bernie
+ones_bern = [1]*len(dates_feelthebern)
+
+idx_bern = pd.DatetimeIndex(dates_feelthebern) - datetime.timedelta(hours = 6)
+
+feelthebern = pd.Series(ones_bern, index = idx_bern)
+
+per_minute_bern = feelthebern.resample('1Min', how='sum').fillna(0)
+
+#hillary
+ones_her = [1]*len(dates_imwithher)
+
+idx_her = pd.DatetimeIndex(dates_imwithher) - datetime.timedelta(hours = 6)
+
+imwithher = pd.Series(ones_her, index = idx_her)
+
+per_minute_her = imwithher.resample('1Min', how='sum').fillna(0)
+
+#gop
+ones_gop = [1]*len(dates_gopdebate)
+
+idx_gop = pd.DatetimeIndex(dates_gopdebate) - datetime.timedelta(hours = 6)
+
+gopdebate = pd.Series(ones_gop, index = idx_gop)
+
+per_minute_gop = gopdebate.resample('1Min', how='sum').fillna(0)
+
+#rubio
+ones_rubio = [1]*len(dates_rubio)
+
+idx_rubio = pd.DatetimeIndex(dates_rubio) - datetime.timedelta(hours = 6)
+
+rubio = pd.Series(ones_rubio, index = idx_rubio)
+
+per_minute_rubio = rubio.resample('1Min', how='sum').fillna(0)
+
+word_freq = count_only.most_common(20)
+labels, freq = zip(*word_freq)
+data = {'data': freq, 'x': labels}
+bar = vincent.Bar(data, iter_idx='x')
+bar.to_json('term_freq.json')
+
+
+
+#time_chart = vincent.Line(per_minute_bern)
+##time_chart.scales[1].domain_max = 25
+#time_chart.axis_titles(x = 'Time', y = 'Freq')
+#time_chart.to_json('time_chart.json')
+#time_chart.display()
+
+total_data = dict(trump=per_minute_bern, nevertrump=per_minute_her, tedcruz=per_minute_gop, rubio = per_minute_rubio)
+
+all_data = pd.DataFrame(data = total_data, index = per_minute_bern.index)
+
+all_tweets = all_data.resample('1Min', how = 'sum').fillna(0)
+
+time_chart_all = vincent.Line(all_tweets[['trump', 'nevertrump', 'tedcruz']])#, 'rubio']])
+time_chart_all.axis_titles(x = 'Time', y = 'Freq')
+time_chart_all.legend(title = 'Tweets')
+time_chart_all.to_json('time_chart_fuck.json')
+
