@@ -1,0 +1,119 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 25 01:23:14 2016
+
+@author: John
+"""
+
+import re
+from twython import Twython
+import time
+import tweepy
+import os
+from tweepy import OAuthHandler
+import pandas as pd
+from twython import TwythonRateLimitError
+
+def toDataFrame(tweets):
+
+    DataSet = pd.DataFrame()
+
+    DataSet['tweetID'] = [tweet.id for tweet in tweets]
+    DataSet['tweetText'] = [tweet.text for tweet in tweets]
+    DataSet['tweetRetweetCt'] = [tweet.retweet_count for tweet in tweets]
+    DataSet['tweetFavoriteCt'] = [tweet.favorite_count for tweet in tweets]
+    DataSet['tweetSource'] = [tweet.source for tweet in tweets]
+    DataSet['tweetCreated'] = [tweet.created_at for tweet in tweets]
+
+
+    DataSet['userID'] = [tweet.user.id for tweet in tweets]
+    DataSet['userScreen'] = [tweet.user.screen_name for tweet in tweets]
+    DataSet['userName'] = [tweet.user.name for tweet in tweets]
+    DataSet['userCreateDt'] = [tweet.user.created_at for tweet in tweets]
+    DataSet['userDesc'] = [tweet.user.description for tweet in tweets]
+    DataSet['userFollowerCt'] = [tweet.user.followers_count for tweet in tweets]
+    DataSet['userFriendsCt'] = [tweet.user.friends_count for tweet in tweets]
+    DataSet['userLocation'] = [tweet.user.location for tweet in tweets]
+    DataSet['userTimezone'] = [tweet.user.time_zone for tweet in tweets]
+
+    return(DataSet)
+
+consumer_key = 'CWTRfQtskWduA9PmlFeij09jy'
+consumer_secret = 'lM5cQnWR6dUQDctZEjUKrekshekMHm9U4FsRa4tMM3hfUxP23y'
+access_token = '482187063-UM0sXMpbfzV2dGf07ptuKklqeqB4jUAUppOLbqf3'
+access_secret = 'N0pc2rwDixim6YjiG3O1oTis2AEa12PGyI915y0kkGQyw'
+
+auth = OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_secret)
+
+api = tweepy.API(auth)
+
+t = Twython(app_key = 'CWTRfQtskWduA9PmlFeij09jy',
+            app_secret = 'lM5cQnWR6dUQDctZEjUKrekshekMHm9U4FsRa4tMM3hfUxP23y',
+            oauth_token = '482187063-UM0sXMpbfzV2dGf07ptuKklqeqB4jUAUppOLbqf3',
+            oauth_token_secret = 'N0pc2rwDixim6YjiG3O1oTis2AEa12PGyI915y0kkGQyw')
+
+tweets                          =   []
+all_results                     = pd.DataFrame()
+MAX_ATTEMPTS                    =   100
+COUNT_OF_TWEETS_TO_BE_FETCHED   =   10000
+
+search_term = 'search_term'
+
+for i in range(0,MAX_ATTEMPTS):
+    try:
+        if(COUNT_OF_TWEETS_TO_BE_FETCHED < len(tweets)):
+            break # we got 500 tweets... !!
+
+        #----------------------------------------------------------------#
+        # STEP 1: Query Twitter
+        # STEP 2: Save the returned tweets
+        # STEP 3: Get the next max_id
+        #----------------------------------------------------------------#
+
+        # STEP 1: Query Twitter
+        if(0 == i):
+            # Query twitter for data.
+            results    = api.search(q=search_term,count='100')
+        else:
+            # After the first call we should have max_id from result of previous call. Pass it in query.
+            results    = api.search(q=search_term,include_entities='true',max_id = next_max_id)
+
+        results = toDataFrame(results)
+        all_results.append(results)
+        # STEP 2: Save the returned tweets
+        for result in results['tweetText']:
+            tweet_text = result
+            tweets.append(tweet_text)
+
+
+
+        # STEP 3: Get the next max_id
+        try:
+            # Parse the data returned to get max_id to be passed in consequent call.
+            #next_results_url_params    = results['search_metadata']['next_results']
+            #next_max_id        = next_results_url_params.split('max_id=')[1].split('&')[0]
+            next_max_id = int(results['tweetID'].min())
+        except:
+            # No more next pages
+            break
+
+    except TwythonRateLimitError as error:
+        remainder = float(t.get_lastfunction_header(header='x-rate-limit-reset')) - time.time()
+        t.disconnect()
+        time.sleep(remainder)
+        twitter = Twython(consumer_key, consumer_secret,oauth_token, oauth_token_secret)
+        continue
+
+
+emoji_pattern = re.compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags=re.UNICODE)
+
+with open(os.getcwd() + '\\' + search_term + ' Tweets.txt', 'w') as f:
+    for tweet in tweets:
+        tweet = emoji_pattern.sub(r'', tweet)
+        f.write(tweet + '\n')
